@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Base vectorielle ChromaDB
+chroma/
+data/chroma/
+
+# Corpus source lourd
+data/*.parquet
+
+# Source brute lourde (regenerable via extract_corpus.py)
+data/code_travail.json
+
+# On garde le corpus final extrait (12 Mo, livrable)
+!data/corpus_code_travail.csv
