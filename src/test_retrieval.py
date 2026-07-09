@@ -1,8 +1,6 @@
 from src.vector_db import VectorDB
 from src.config import TOP_K
 
-db = VectorDB()
-
 # Jeu d'evaluation : question realiste -> article(s) valide(s)
 # Plusieurs articles acceptes quand le sujet s'etale sur plusieurs.
 TESTS = [
@@ -16,19 +14,25 @@ TESTS = [
     ("Qu'est-ce qu'un licenciement pour motif economique ?", ["L1233-3", "L1233-2"]),
 ]
 
-reussis = 0
-details = []
-for question, attendus in TESTS:
-    res = db.retrieve(question, n=TOP_K)
-    numeros = [m["numero_article"] for m in res["metadatas"][0]]
-    # succes si AU MOINS un article attendu est dans le top-k
-    trouve = any(a in numeros for a in attendus)
-    if trouve:
-        reussis += 1
-    statut = "OK  " if trouve else "RATE"
-    print(f"[{statut}] {question}")
-    print(f"       attendu(s): {attendus}")
-    print(f"       top-{TOP_K}: {numeros}")
-    print()
 
-print(f"=== {reussis}/{len(TESTS)} questions trouvent un article valide dans le top-{TOP_K} ===")
+def main():
+    db = VectorDB()
+
+    reussis = 0
+    for question, attendus in TESTS:
+        res = db.retrieve(question, n=TOP_K)
+        numeros = [m["numero_article"] for m in res["metadatas"][0]]
+        trouve = any(a in numeros for a in attendus)
+        if trouve:
+            reussis += 1
+        statut = "OK  " if trouve else "RATE"
+        print(f"[{statut}] {question}")
+        print(f"       attendu(s): {attendus}")
+        print(f"       top-{TOP_K}: {numeros}")
+        print()
+
+    print(f"=== {reussis}/{len(TESTS)} questions trouvent un article valide dans le top-{TOP_K} ===")
+
+
+if __name__ == "__main__":
+    main()
