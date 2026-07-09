@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from groq import Groq
 
 from src.config import LLM_MODEL, TOP_K
+from src.agent_question import former_question
 
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
@@ -124,13 +125,27 @@ def repondre(question, db, top_k=TOP_K, use_hyde=True):
         "avertissement_fraicheur": str | None,
     }
     """
-    if use_hyde:
-        texte_hyde = generer_hyde(question)
-        resultats_hyde = db.retrieve(texte_hyde, n=top_k)
-        resultats_brut = db.retrieve(question, n=top_k)
-        resultats = fusionner_resultats(resultats_hyde, resultats_brut, n=top_k)
-    else:
-        resultats = db.retrieve(question, n=top_k)
+    sous_questions = former_question(question)
+
+    tous_documents, tous_metadatas, tous_distances = [], [], []
+    for sq in sous_questions:
+        if use_hyde:
+            texte_hyde = generer_hyde(sq)
+            resultats_hyde = db.retrieve(texte_hyde, n=top_k)
+            resultats_brut = db.retrieve(sq, n=top_k)
+            resultats_sq = fusionner_resultats(resultats_hyde, resultats_brut, n=top_k)
+        else:
+            resultats_sq = db.retrieve(sq, n=top_k)
+
+        tous_documents.extend(resultats_sq["documents"][0])
+        tous_metadatas.extend(resultats_sq["metadatas"][0])
+        tous_distances.extend(resultats_sq["distances"][0])
+
+    resultats = fusionner_resultats(
+        {"documents": [tous_documents], "metadatas": [tous_metadatas], "distances": [tous_distances]},
+        {"documents": [[]], "metadatas": [[]], "distances": [[]]},
+        n=top_k,
+    )
 
     contexte = construire_contexte(resultats)
     articles_sources = extraire_articles_sources(resultats)
