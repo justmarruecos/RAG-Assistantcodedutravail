@@ -5,7 +5,7 @@ reponses sur le Code du travail francais.
 Usage : python -m src.cli
 """
 
-from src.vector_db import VectorDB
+from src.hybrid_search import HybridSearch
 from src.generation import repondre
 
 COMMANDES_SORTIE = {"quit", "exit", "q", ":q"}
@@ -33,7 +33,7 @@ def main():
     print("=" * 70)
 
     print("\nChargement de la base vectorielle...")
-    db = VectorDB()
+    db = HybridSearch()
     print(f"Base chargee. Corpus mis a jour le : {db.date_fraicheur()}")
     print("-" * 70)
 
@@ -51,7 +51,7 @@ def main():
             print("Au revoir.")
             break
 
-        resultat = repondre(question, db)
+        resultat = repondre(question, db, use_hyde=False)
         afficher_reponse(resultat)
 
 
