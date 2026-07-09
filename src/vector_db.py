@@ -1,7 +1,7 @@
 import chromadb
 from sentence_transformers import SentenceTransformer
 from src.config import EMBEDDING_MODEL, CHROMA_PATH, COLLECTION_NAME, MAX_SEQ_LENGTH
-
+from src.chunking import construire_chunks
 
 def charger_modele(nom):
     """Charge le modele et force sa fenetre a MAX_SEQ_LENGTH tokens.
@@ -59,3 +59,35 @@ class VectorDB:
     def retrieve(self, question, n=5):
         vecteur = self._encode([question])
         return self.collection.query(query_embeddings=vecteur, n_results=n)
+
+    def ajouter_article(self, article):
+            """Ajoute ou met a jour un seul article dans la base existante,
+            SANS reindexer l'ensemble du corpus.
+
+            Usage : nouvelle loi votee, ou modification d'un article existant.
+            article doit etre un dict avec les memes cles que le corpus CSV :
+            {"numero_article": ..., "texte": ..., "section": ..., "source": ...}
+
+            Si l'article existe deja (meme numero_article), ses chunks sont
+            REMPLACES (upsert), pas dupliques : utile pour une loi amendee.
+            """
+            ids, textes, metadatas = construire_chunks([article])
+
+            # On supprime d'abord d'anciens chunks de cet article s'ils existent,
+            # au cas ou le nouveau texte se decoupe en MOINS de chunks que l'ancien
+            # (upsert seul ne supprimerait pas un chunk devenu superflu, ex:
+            # __2 qui existait avant mais n'existe plus apres modification).
+            anciens = self.collection.get(
+                where={"numero_article": article["numero_article"]}
+            )
+            if anciens["ids"]:
+                self.collection.delete(ids=anciens["ids"])
+
+            vecteurs = self._encode(textes)
+            self.collection.upsert(
+                ids=ids,
+                documents=textes,
+                embeddings=vecteurs,
+                metadatas=metadatas,
+            )
+            return len(ids)
