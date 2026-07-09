@@ -28,15 +28,17 @@ MESSAGE_HORS_CORPUS = (
     "avec certitude a cette question."
 )
 
-PROMPT_SYSTEME = f"""Tu es un assistant qui repond a des questions sur le droit du travail francais, en te basant EXCLUSIVEMENT sur les extraits d'articles du Code du travail fournis ci-dessous.
+def _charger_prompt_systeme():
+    """Charge le prompt systeme depuis prompts/system_prompt.txt
+    (isole du code, comme demande : plus facile a relire, versionner
+    et faire evoluer sans toucher a la logique Python)."""
+    chemin = os.path.join(os.path.dirname(__file__), "..", "prompts", "system_prompt.txt")
+    with open(chemin, encoding="utf-8") as f:
+        template = f.read()
+    return template.format(sentinelle=SENTINELLE_HORS_CORPUS)
 
-REGLES STRICTES :
-1. Reponds UNIQUEMENT a partir des extraits fournis. N'utilise aucune connaissance juridique en dehors de ce contexte.
-2. Chaque affirmation de ta reponse doit etre rattachee a un numero d'article present dans le contexte (ex: "selon l'article L1234-5...").
-3. Si les extraits fournis ne permettent PAS de repondre a la question, reponds EXACTEMENT et UNIQUEMENT par : {SENTINELLE_HORS_CORPUS}
-4. Si la reponse depend de conditions non precisees dans la question (taille de l'entreprise, convention collective applicable), signale cette dependance explicitement plutot que de supposer une situation.
-5. Ne donne jamais d'avis sur le caractere abusif ou legal d'une situation personnelle precise (ex: "mon licenciement est-il abusif ?") : rappelle ce que dit la loi de maniere generale et invite a consulter un professionnel pour une analyse du cas particulier.
-6. Sois concis et precis. Pas de formules d'introduction inutiles."""
+
+PROMPT_SYSTEME = _charger_prompt_systeme()
 
 import re
 
@@ -52,6 +54,7 @@ def detecter_numero_article(question):
         lettre, chiffres = match.groups()
         return f"{lettre}{chiffres}"
     return None
+
 
 def generer_hyde(question):
     """Genere un extrait fictif d'article de loi repondant a la question,
