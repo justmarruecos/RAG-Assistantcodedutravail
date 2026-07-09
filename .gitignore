@@ -229,6 +229,3 @@ data/code_travail.json
 
 # On garde le corpus final extrait (12 Mo, livrable)
 !data/corpus_code_travail.csv
-
-chroma.tar.gz
-*.tar.gz

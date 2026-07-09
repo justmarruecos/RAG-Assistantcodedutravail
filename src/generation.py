@@ -38,21 +38,6 @@ REGLES STRICTES :
 5. Ne donne jamais d'avis sur le caractere abusif ou legal d'une situation personnelle precise (ex: "mon licenciement est-il abusif ?") : rappelle ce que dit la loi de maniere generale et invite a consulter un professionnel pour une analyse du cas particulier.
 6. Sois concis et precis. Pas de formules d'introduction inutiles."""
 
-import re
-
-PATTERN_NUMERO_ARTICLE = re.compile(r"\b([LRD])\.?\s*(\d{1,4}(?:-\d+)*)\b")
-
-
-def detecter_numero_article(question):
-    """Detecte un numero d'article explicite dans la question
-    (ex: 'L3121-27', 'L. 3121-27', 'article R4412-149').
-    Retourne le numero normalise (ex: 'L3121-27') ou None."""
-    match = PATTERN_NUMERO_ARTICLE.search(question)
-    if match:
-        lettre, chiffres = match.groups()
-        return f"{lettre}{chiffres}"
-    return None
-
 def generer_hyde(question):
     """Genere un extrait fictif d'article de loi repondant a la question,
     utilise UNIQUEMENT pour ameliorer la recherche vectorielle.
@@ -69,7 +54,6 @@ def generer_hyde(question):
         temperature=0,
     )
     return resp.choices[0].message.content
-
 
 def construire_contexte(resultats):
     """Transforme les resultats de VectorDB.retrieve() en un contexte
@@ -145,11 +129,7 @@ def repondre(question, db, top_k=TOP_K, use_hyde=True):
 
     tous_documents, tous_metadatas, tous_distances = [], [], []
     for sq in sous_questions:
-        numero_detecte = detecter_numero_article(sq)
-
-        if numero_detecte:
-            resultats_sq = db.rechercher_par_numero(numero_detecte, n=top_k)
-        elif use_hyde:
+        if use_hyde:
             texte_hyde = generer_hyde(sq)
             resultats_hyde = db.retrieve(texte_hyde, n=top_k)
             resultats_brut = db.retrieve(sq, n=top_k)

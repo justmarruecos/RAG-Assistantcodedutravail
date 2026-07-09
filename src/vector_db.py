@@ -70,30 +70,6 @@ class VectorDB:
         vecteur = self._encode([question])
         return self.collection.query(query_embeddings=vecteur, n_results=n)
 
-    def rechercher_par_numero(self, numero_article, n=5):
-        """Recherche EXACTE par numero d'article via les metadonnees,
-        sans passer par la similarite vectorielle. Utile pour les
-        questions du type 'Que dit l'article L3121-27 ?', ou la
-        recherche semantique echoue car un numero d'article n'a pas de
-        sens semantique en soi.
-
-        Retourne le meme format que retrieve() pour rester compatible
-        avec generation.py."""
-        resultats = self.collection.get(
-            where={"numero_article": numero_article},
-            include=["documents", "metadatas"],
-        )
-        docs = resultats["documents"][:n]
-        metas = resultats["metadatas"][:n]
-        dists = [float(i) for i in range(len(docs))]
-
-        return {
-            "ids": [resultats["ids"][:n]],
-            "documents": [docs],
-            "metadatas": [metas],
-            "distances": [dists],
-        }
-        
     def date_fraicheur(self):
         """Retourne la date de mise a jour officielle du corpus (DILA),
         telle que stockee dans les metadonnees de la collection."""
