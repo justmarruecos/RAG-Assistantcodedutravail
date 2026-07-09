@@ -7,34 +7,9 @@ embedde pour la recherche, plutot que la question elle-meme.
 Usage : python -m src.test_hyde
 """
 
-import os
-from dotenv import load_dotenv
-from groq import Groq
-
 from src.vector_db import VectorDB
-from src.config import LLM_MODEL
 from src.test_retrieval import TESTS
-
-load_dotenv()
-client = Groq(api_key=os.environ["GROQ_API_KEY"])
-
-
-def generer_hyde(question):
-    """Genere un extrait fictif d'article de loi repondant a la question.
-    ATTENTION : ce texte est hallucine par construction (references,
-    numeros d'articles potentiellement faux). Il ne sert JAMAIS a
-    repondre a l'utilisateur, uniquement a ameliorer le vecteur de
-    recherche."""
-    prompt = (
-        f"Redige un court extrait fictif d'article du Code du travail "
-        f"francais (3-4 phrases) qui repondrait a cette question : {question}"
-    )
-    resp = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-        )
-    return resp.choices[0].message.content
+from src.generation import generer_hyde
 
 
 def position_dans_resultats(db, texte_recherche, attendus, n=15):
