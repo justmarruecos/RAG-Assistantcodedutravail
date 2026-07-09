@@ -81,6 +81,27 @@ def extraire_articles_sources(resultats):
             vus.append(num)
     return vus
 
+def fusionner_resultats(resultats_a, resultats_b, n):
+    """Fusionne deux resultats de recherche (ex: HyDE + question brute),
+    en gardant les documents uniques classes par leur meilleure distance,
+    limite a n resultats. Reduit le risque qu'une seule recherche
+    (HyDE parfois instable) fasse totalement rater le bon contexte."""
+    vus = {}
+    for resultats in (resultats_a, resultats_b):
+        docs = resultats["documents"][0]
+        metas = resultats["metadatas"][0]
+        dists = resultats["distances"][0]
+        for doc, meta, dist in zip(docs, metas, dists):
+            cle = meta["numero_article"] + "__" + str(meta["segment"])
+            if cle not in vus or dist < vus[cle][2]:
+                vus[cle] = (doc, meta, dist)
+
+    fusion = sorted(vus.values(), key=lambda x: x[2])[:n]
+    return {
+        "documents": [[f[0] for f in fusion]],
+        "metadatas": [[f[1] for f in fusion]],
+        "distances": [[f[2] for f in fusion]],
+    }
 
 def repondre(question, db, top_k=TOP_K, use_hyde=True):
     """Pipeline complet : (HyDE) -> recherche -> prompt -> generation ->
@@ -103,8 +124,14 @@ def repondre(question, db, top_k=TOP_K, use_hyde=True):
         "avertissement_fraicheur": str | None,
     }
     """
-    texte_recherche = generer_hyde(question) if use_hyde else question
-    resultats = db.retrieve(texte_recherche, n=top_k)
+    if use_hyde:
+        texte_hyde = generer_hyde(question)
+        resultats_hyde = db.retrieve(texte_hyde, n=top_k)
+        resultats_brut = db.retrieve(question, n=top_k)
+        resultats = fusionner_resultats(resultats_hyde, resultats_brut, n=top_k)
+    else:
+        resultats = db.retrieve(question, n=top_k)
+
     contexte = construire_contexte(resultats)
     articles_sources = extraire_articles_sources(resultats)
 
