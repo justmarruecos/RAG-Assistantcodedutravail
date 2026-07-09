@@ -1,5 +1,7 @@
 import json
 import pandas as pd
+import datetime
+import json as json_module
 
 
 def parcourir(noeud, chemin, articles):
@@ -35,6 +37,9 @@ def main():
     with open("data/code_travail.json", encoding="utf-8") as f:
         data = json.load(f)
 
+    # Date officielle de mise a jour du Code du travail, fournie par la DILA
+    date_maj_corpus = data.get("data", {}).get("dateModif")
+
     articles = []
     parcourir(data, [], articles)
 
@@ -46,6 +51,14 @@ def main():
 
     sortie = "data/corpus_code_travail.csv"
     corpus.to_csv(sortie, index=False, encoding="utf-8")
+
+    meta = {
+        "date_maj_corpus": date_maj_corpus,
+        "date_extraction": datetime.date.today().isoformat(),
+        "nb_articles": len(corpus),
+    }
+    with open("data/corpus_meta.json", "w", encoding="utf-8") as f:
+        json_module.dump(meta, f, ensure_ascii=False, indent=2)
 
     print(f"Corpus ecrit : {sortie}")
     print(f"Nombre d'articles en vigueur : {len(corpus)}")
