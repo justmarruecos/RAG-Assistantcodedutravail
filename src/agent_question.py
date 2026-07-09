@@ -6,6 +6,8 @@ l'intervenant.
 Combine en un seul appel LLM :
 - suppression des mots parasites (formules de politesse, hesitations)
 - decoupage en sous-questions atomiques si la question est composite
+- decomposition en sous-questions de definition si la question est
+  une comparaison entre deux notions (prefixees "DEF: ")
 
 Usage : questions_nettoyees = former_question(question_brute)
 """
@@ -19,17 +21,24 @@ from src.config import LLM_MODEL
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-PROMPT_FORMATION = """Tu es un agent de pretraitement de questions pour un systeme de recherche juridique.
 
-Etant donne une question utilisateur, effectue deux operations :
-1. Supprime les mots parasites (formules de politesse, hesitations, tournures inutiles).
-2. Si la question contient PLUSIEURS sujets distincts, decoupe-la en sous-questions atomiques, une par ligne. Si elle ne porte que sur UN seul sujet, renvoie-la telle quelle (nettoyee), sur une seule ligne.
+def _charger_prompt_formation():
+    """Charge le prompt depuis prompts/formation_question_prompt.txt
+    (isole du code, comme pour PROMPT_SYSTEME dans generation.py)."""
+    chemin = os.path.join(
+        os.path.dirname(__file__), "..", "prompts", "formation_question_prompt.txt"
+    )
+    with open(chemin, encoding="utf-8") as f:
+        return f.read()
 
-Reponds UNIQUEMENT avec les questions resultantes, une par ligne, sans numerotation ni commentaire."""
+
+PROMPT_FORMATION = _charger_prompt_formation()
 
 
 def former_question(question_brute):
-    """Retourne une liste de 1 a N sous-questions nettoyees et atomiques."""
+    """Retourne une liste de 1 a N sous-questions nettoyees et
+    atomiques. Les sous-questions issues d'une comparaison sont
+    prefixees 'DEF: ' pour signaler ce contexte a la generation."""
     resp = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[
