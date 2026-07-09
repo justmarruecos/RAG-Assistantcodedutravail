@@ -2,6 +2,7 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from src.config import EMBEDDING_MODEL, CHROMA_PATH, COLLECTION_NAME, MAX_SEQ_LENGTH
 from src.chunking import construire_chunks
+import json
 
 def charger_modele(nom):
     """Charge le modele et force sa fenetre a MAX_SEQ_LENGTH tokens.
@@ -23,17 +24,26 @@ class VectorDB:
             self.model = charger_modele(nom_modele)
 
         elif textes is not None:
-            self.model = charger_modele(EMBEDDING_MODEL)
-            self.collection = self.client.create_collection(
-                name=COLLECTION_NAME,
-                metadata={"embedding_model": EMBEDDING_MODEL, "hnsw:space": "cosine"},
-            )
-            self._indexer_par_lots(ids, textes, metadatas)
+                    self.model = charger_modele(EMBEDDING_MODEL)
 
-        else:
-            raise ValueError(
-                "Aucune base trouvee et aucun chunk fourni : impossible de demarrer."
-            )
+                    # On recupere la fraicheur du corpus si le fichier existe
+                    date_maj_corpus = None
+                    try:
+                        with open("data/corpus_meta.json", encoding="utf-8") as f:
+                            meta_corpus = json.load(f)
+                            date_maj_corpus = meta_corpus.get("date_maj_corpus")
+                    except FileNotFoundError:
+                        pass  # pas bloquant : la base se construit quand meme
+
+                    self.collection = self.client.create_collection(
+                        name=COLLECTION_NAME,
+                        metadata={
+                            "embedding_model": EMBEDDING_MODEL,
+                            "hnsw:space": "cosine",
+                            "date_maj_corpus": date_maj_corpus or "inconnue",
+                        },
+                    )
+                    self._indexer_par_lots(ids, textes, metadatas)
 
     def _encode(self, textes):
         return self.model.encode(
@@ -59,6 +69,34 @@ class VectorDB:
     def retrieve(self, question, n=5):
         vecteur = self._encode([question])
         return self.collection.query(query_embeddings=vecteur, n_results=n)
+
+    def date_fraicheur(self):
+        """Retourne la date de mise a jour officielle du corpus (DILA),
+        telle que stockee dans les metadonnees de la collection."""
+        return self.collection.metadata.get("date_maj_corpus", "inconnue")
+
+    def avertissement_fraicheur(self, seuil_jours=90):
+        """Retourne un message d'avertissement si le corpus commence a
+        dater, ou None si la fraicheur est encore raisonnable.
+        seuil_jours=90 : au-dela de 3 mois, le droit du travail a pu
+        evoluer (lois, ordonnances) sans que la base soit mise a jour."""
+        import datetime
+
+        date_str = self.date_fraicheur()
+        if date_str == "inconnue":
+            return "Date de mise a jour du corpus inconnue : fraicheur non garantie."
+
+        date_maj = datetime.date.fromisoformat(date_str)
+        aujourdhui = datetime.date.today()
+        age_jours = (aujourdhui - date_maj).days
+
+        if age_jours > seuil_jours:
+            return (
+                f"Attention : ce corpus date du {date_maj.strftime('%d/%m/%Y')} "
+                f"({age_jours} jours). Des evolutions legislatives recentes "
+                f"pourraient ne pas etre prises en compte."
+            )
+        return None
 
     def ajouter_article(self, article):
             """Ajoute ou met a jour un seul article dans la base existante,
