@@ -1,4 +1,7 @@
 sentence-transformers
 chromadb
 groq
-python-dotenvrank-bm25
+python-dotenv
+rank-bm25
+pandas
+
