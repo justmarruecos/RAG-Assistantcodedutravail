@@ -11,6 +11,24 @@ def _phrases(texte):
     return [m.replace('@', '.').strip() for m in morceaux if m.strip()]
 
 
+def _sous_decouper_si_trop_long(phrase, max_chars):
+    """Si une phrase seule depasse max_chars, la decoupe par mots
+    (filet de securite pour les enumerations sans ponctuation forte)."""
+    if len(phrase) <= max_chars:
+        return [phrase]
+    mots = phrase.split(" ")
+    segments, courant, taille = [], [], 0
+    for mot in mots:
+        if taille + len(mot) > max_chars and courant:
+            segments.append(" ".join(courant))
+            courant, taille = [], 0
+        courant.append(mot)
+        taille += len(mot) + 1
+    if courant:
+        segments.append(" ".join(courant))
+    return segments
+
+
 def decouper_texte(texte, max_chars=CHUNK_MAX_CHARS, overlap=CHUNK_OVERLAP):
     """Decoupe un texte long SANS couper au milieu d'une phrase.
     - Court (<= max_chars) : renvoye tel quel (1 chunk).
@@ -34,6 +52,13 @@ def decouper_texte(texte, max_chars=CHUNK_MAX_CHARS, overlap=CHUNK_OVERLAP):
             else:
                 courant = []
                 taille = 0
+
+        if len(phrase) > max_chars:
+            for sous_segment in _sous_decouper_si_trop_long(phrase, max_chars):
+                segments.append(sous_segment)
+            courant, taille = [], 0
+            continue
+
         courant.append(phrase)
         taille += len(phrase) + 1
 
