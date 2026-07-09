@@ -8,9 +8,11 @@ CODE plutot que de compter uniquement sur le prompt.
 import os
 from dotenv import load_dotenv
 from groq import Groq
+import re
 
 from src.config import LLM_MODEL, TOP_K
 from src.agent_question import former_question
+from src.moderation import moderer
 
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
@@ -39,8 +41,6 @@ def _charger_prompt_systeme():
 
 
 PROMPT_SYSTEME = _charger_prompt_systeme()
-
-import re
 
 PATTERN_NUMERO_ARTICLE = re.compile(r"\b([LRD])\.?\s*(\d{1,4}(?:-\d+)*)\b")
 
@@ -144,6 +144,19 @@ def repondre(question, db, top_k=TOP_K, use_hyde=True):
         "avertissement_fraicheur": str | None,
     }
     """
+    ok, raison_blocage = moderer(question)
+    if not ok:
+        return {
+            "reponse": (
+                "Cette question ne peut pas etre traitee "
+                f"(moderation : {raison_blocage})."
+            ),
+            "articles_sources": [],
+            "hors_corpus": True,
+            "avertissement_juridique": AVERTISSEMENT_JURIDIQUE,
+            "avertissement_fraicheur": db.avertissement_fraicheur(),
+        }
+
     sous_questions = former_question(question)
 
     tous_documents, tous_metadatas, tous_distances = [], [], []
